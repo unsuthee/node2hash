@@ -48,7 +48,8 @@ class EdgeReg(nn.Module):
         mu, logvar = self.encode(document_mat)
         z = self.reparametrize(mu, logvar)
         prob_w = self.decoder(z)
-        return prob_w, mu, logvar
+        prob_nn = self.nn_decoder(z)
+        return prob_w, prob_nn, mu, logvar
     
     def get_name(self):
         return "node2hash"
@@ -69,12 +70,12 @@ class EdgeReg(nn.Module):
         return -torch.mean(torch.sum(logprob_word * edge_mat, dim=1))
     
     def get_binary_code(self, train, test):
-        train_zy = [(self.encode(xb.to(self.device))[0], yb) for xb, yb in train]
+        train_zy = [(self.encode(xb.to(self.device))[0], yb) for xb, yb, nb in train]
         train_z, train_y = zip(*train_zy)
         train_z = torch.cat(train_z, dim=0)
         train_y = torch.cat(train_y, dim=0)
 
-        test_zy = [(self.encode(xb.to(self.device))[0], yb) for xb, yb in test]
+        test_zy = [(self.encode(xb.to(self.device))[0], yb) for xb, yb, nb in test]
         test_z, test_y = zip(*test_zy)
         test_z = torch.cat(test_z, dim=0)
         test_y = torch.cat(test_y, dim=0)
