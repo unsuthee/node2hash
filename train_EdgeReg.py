@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-g", "--gpunum", help="GPU number to train the model.")
 parser.add_argument("-d", "--dataset", help="Name of the dataset.")
 parser.add_argument("-b", "--nbits", help="Number of bits of the embedded vector.", type=int)
+parser.add_argument("-w", "--walk", help="Graph traversal strategy (BFS, DFS, Random), followed the maximum neighbors. E.g. BFS-20 we perform BFS upto 20 nodes.")
 parser.add_argument("--dropout", help="Dropout probability (0 means no dropout)", default=0.1, type=float)
 parser.add_argument("--train_batch_size", default=100, type=int)
 parser.add_argument("--test_batch_size", default=100, type=int)
@@ -32,6 +33,9 @@ if not args.dataset:
 if not args.nbits:
     parser.error("Need to provide the number of bits.")
         
+if not args.walk:
+    parser.error("Need to provide the graph traversal method.")
+    
 ##################################################################################################
 
 os.environ["CUDA_VISIBLE_DEVICES"]=args.gpunum
@@ -50,7 +54,7 @@ test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=args.test
 #########################################################################################################
 y_dim = train_set.num_classes()
 num_bits = args.nbits
-num_features = train_set[0][0].size(0)
+num_features = train_set[0][1].size(0)
 num_nodes = len(train_set)
 
 print("Train node2hash model ...")
@@ -62,6 +66,21 @@ print("num epochs: {}".format(args.num_epochs))
 print("learning rate: {}".format(args.lr))
 print("num train: {} num test: {}".format(len(train_set), len(test_set)))
 
+#########################################################################################################
+
+walk_type, max_nodes = args.walk.split('-')
+max_nodes = int(max_nodes)
+print("Walk type: {} with maximum nodes of: {}".format(walk_type, max_nodes))
+
+if walk_type == 'BFS':
+    neighbor_sample_func = BFS_walk
+elif walk_type == 'DFS':
+    neighbor_sample_func = DFS_walk
+elif walk_type == 'Random':
+    neighbor_sample_func = Random_walk
+else:
+    assert(False), "unknown walk type (has to be one of the following: BFS, DFS, Random)"
+    
 #########################################################################################################
 
 model = EdgeReg(dataset_name, num_features, num_nodes, num_bits, dropoutProb=0.1, device=device)
@@ -76,16 +95,20 @@ kl_step = 1 / 5000.
 best_precision = 0
 best_precision_epoch = 0
 
+onehot_lookup = torch.eye(num_nodes)
+
 with open('logs/EdgeReg/loss.log.txt', 'w') as log_handle:
     log_handle.write('epoch,step,loss,reconstr_loss,nn_reconstr_loss,kl_loss\n')
     
     for epoch in range(num_epochs):
         avg_loss = []
-        for step, (xb, yb, nb) in enumerate(train_loader):
+        for step, (ids, xb, yb, _) in enumerate(train_loader):
             xb = xb.to(device)
             yb = yb.to(device)
-            nb = nb.to(device)
             
+            nb = torch.stack([onehot_lookup[neighbor_sample_func(train_set.df, node_id.item(), max_nodes)].sum(dim=0) for node_id in ids], dim=0)
+            nb = nb.to(device)
+
             logprob_w, logprob_nn, mu, logvar = model(xb)
             kl_loss = EdgeReg.calculate_KL_loss(mu, logvar)
             reconstr_loss = EdgeReg.compute_reconstr_loss(logprob_w, xb)
@@ -116,4 +139,4 @@ with open('logs/EdgeReg/loss.log.txt', 'w') as log_handle:
         
 #########################################################################################################
 with open('logs/EdgeReg/result.txt', 'a') as handle:
-    handle.write('{},{},{},{}\n'.format(dataset_name, args.nbits, best_precision_epoch, best_precision))
+    handle.write('{},{},{},{},{},{}\n'.format(dataset_name, args.nbits, walk_type, max_nodes, best_precision_epoch, best_precision))

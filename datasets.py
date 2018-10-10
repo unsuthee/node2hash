@@ -35,13 +35,14 @@ class TextDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
+        doc_id = self.df.iloc[idx].name
         doc_bow = self.df.iloc[idx].bow
         doc_bow = torch.from_numpy(doc_bow.toarray().squeeze().astype(np.float32))
         label_bow = self.df.iloc[idx].label
         label_bow = torch.from_numpy(label_bow.toarray().squeeze().astype(np.float32))
         neighbors = self.df.iloc[idx].neighbors
         neighbors = torch.from_numpy(neighbors.toarray().squeeze().astype(np.float32))
-        return (doc_bow, label_bow, neighbors)
+        return (doc_id, doc_bow, label_bow, neighbors)
     
     def num_classes(self):
         return self.df.iloc[0].label.shape[1]
