@@ -1,5 +1,7 @@
 import os
 import numpy as np
+import pandas as pd
+from scipy import sparse
 from tqdm import tqdm
 import torch
 import torch.optim as optim
@@ -82,7 +84,18 @@ else:
     neighbor_sample_func = None
     print("The model will only takes the immediate neighbors.")
     #assert(False), "unknown walk type (has to be one of the following: BFS, DFS, Random)"
-    
+
+def get_neighbors(ids, df, max_nodes, batch_size, traversal_func):
+    cols = []
+    rows = []
+    for idx, node_id in enumerate(ids):
+        col = traversal_func(df, node_id.item(), max_nodes)
+        rows += [idx] * len(col)
+        cols += col
+    data = [1] * len(cols)
+    connections = sparse.csr_matrix((data, (rows, cols)), shape=(batch_size, len(df)))
+    return torch.from_numpy(connections.toarray()).type(torch.FloatTensor)
+
 #########################################################################################################
 
 model = EdgeReg(dataset_name, num_features, num_nodes, num_bits, dropoutProb=0.1, device=device)
@@ -97,19 +110,17 @@ kl_step = 1 / 5000.
 best_precision = 0
 best_precision_epoch = 0
 
-onehot_lookup = torch.eye(num_nodes)
-
 with open('logs/EdgeReg/loss.log.txt', 'w') as log_handle:
     log_handle.write('epoch,step,loss,reconstr_loss,nn_reconstr_loss,kl_loss\n')
     
     for epoch in range(num_epochs):
         avg_loss = []
-        for step, (ids, xb, yb, nb) in enumerate(train_loader):
+        for step, (ids, xb, yb, nb) in tqdm(enumerate(train_loader), ncols=50, total=len(train_loader)):
             xb = xb.to(device)
             yb = yb.to(device)
             
             if neighbor_sample_func is not None:
-                nb = torch.stack([onehot_lookup[neighbor_sample_func(train_set.df, node_id.item(), max_nodes)].sum(dim=0) for node_id in ids], dim=0)
+                nb = get_neighbors(ids, train_set.df, max_nodes, xb.size(0), neighbor_sample_func)
             nb = nb.to(device)
 
             logprob_w, logprob_nn, mu, logvar = model(xb)
