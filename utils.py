@@ -63,7 +63,7 @@ def Random_walk(df, start_node_id, num_steps):
         curr_node_id = np.random.choice(nn_list)
         visited_nodes.add(int(curr_node_id))
         step_count += 1
-    visited_nodes.remove(start_node_id)
+    #visited_nodes.remove(start_node_id)
     return list(visited_nodes)
 
 def BFS_walk(df, start_node_id, num_steps):
@@ -78,8 +78,8 @@ def BFS_walk(df, start_node_id, num_steps):
         curr_node_id = queue.pop(0)
         while curr_node_id in visited_nodes:
             if len(queue) <= 0:
-                if not isinstance(start_node_id, list):
-                    visited_nodes.remove(start_node_id)
+                #if not isinstance(start_node_id, list):
+                #    visited_nodes.remove(start_node_id)
                 return list(visited_nodes)
             curr_node_id = queue.pop(0)
         
@@ -91,8 +91,8 @@ def BFS_walk(df, start_node_id, num_steps):
         if curr_step > num_steps:
             break
     
-    if not isinstance(start_node_id, list):
-        visited_nodes.remove(start_node_id)
+    #if not isinstance(start_node_id, list):
+    #    visited_nodes.remove(start_node_id)
     return list(visited_nodes)    
 
 def DFS_walk(df, start_node_id, num_hops):
@@ -107,8 +107,8 @@ def DFS_walk(df, start_node_id, num_hops):
         curr_node_id = stack.pop()
         while curr_node_id in visited_nodes:
             if len(stack) <= 0:
-                if not isinstance(start_node_id, list):
-                    visited_nodes.remove(start_node_id)
+                #if not isinstance(start_node_id, list):
+                #    visited_nodes.remove(start_node_id)
                 return list(visited_nodes)
             curr_node_id = stack.pop()
         
@@ -120,6 +120,6 @@ def DFS_walk(df, start_node_id, num_hops):
         if curr_hop > num_hops:
             break
             
-    if not isinstance(start_node_id, list):
-        visited_nodes.remove(start_node_id)
+    #if not isinstance(start_node_id, list):
+    #    visited_nodes.remove(start_node_id)
     return list(visited_nodes)
