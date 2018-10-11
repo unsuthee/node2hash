@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-g", "--gpunum", help="GPU number to train the model.")
 parser.add_argument("-d", "--dataset", help="Name of the dataset.")
 parser.add_argument("-b", "--nbits", help="Number of bits of the embedded vector.", type=int)
-parser.add_argument("-w", "--walk", help="Graph traversal strategy (BFS, DFS, Random), followed the maximum neighbors. E.g. BFS-20 we perform BFS upto 20 nodes.")
+parser.add_argument("-w", "--walk", default="Immedidate-1", help="Graph traversal strategy (BFS, DFS, Random), followed the maximum neighbors. E.g. BFS-20 we perform BFS upto 20 nodes.")
 parser.add_argument("--dropout", help="Dropout probability (0 means no dropout)", default=0.1, type=float)
 parser.add_argument("--train_batch_size", default=100, type=int)
 parser.add_argument("--test_batch_size", default=100, type=int)
@@ -79,7 +79,9 @@ elif walk_type == 'DFS':
 elif walk_type == 'Random':
     neighbor_sample_func = Random_walk
 else:
-    assert(False), "unknown walk type (has to be one of the following: BFS, DFS, Random)"
+    neighbor_sample_func = None
+    print("The model will only takes the immediate neighbors.")
+    #assert(False), "unknown walk type (has to be one of the following: BFS, DFS, Random)"
     
 #########################################################################################################
 
@@ -102,11 +104,12 @@ with open('logs/EdgeReg/loss.log.txt', 'w') as log_handle:
     
     for epoch in range(num_epochs):
         avg_loss = []
-        for step, (ids, xb, yb, _) in enumerate(train_loader):
+        for step, (ids, xb, yb, nb) in enumerate(train_loader):
             xb = xb.to(device)
             yb = yb.to(device)
             
-            nb = torch.stack([onehot_lookup[neighbor_sample_func(train_set.df, node_id.item(), max_nodes)].sum(dim=0) for node_id in ids], dim=0)
+            if neighbor_sample_func is not None:
+                nb = torch.stack([onehot_lookup[neighbor_sample_func(train_set.df, node_id.item(), max_nodes)].sum(dim=0) for node_id in ids], dim=0)
             nb = nb.to(device)
 
             logprob_w, logprob_nn, mu, logvar = model(xb)
