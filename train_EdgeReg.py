@@ -17,11 +17,12 @@ parser.add_argument("-g", "--gpunum", help="GPU number to train the model.")
 parser.add_argument("-d", "--dataset", help="Name of the dataset.")
 parser.add_argument("-b", "--nbits", help="Number of bits of the embedded vector.", type=int)
 parser.add_argument("-w", "--walk", default="Immedidate-1", help="Graph traversal strategy (BFS, DFS, Random), followed the maximum neighbors. E.g. BFS-20 we perform BFS upto 20 nodes.")
+parser.add_argument("--edge_weight", default=1.0, type=float)
 parser.add_argument("--dropout", help="Dropout probability (0 means no dropout)", default=0.1, type=float)
 parser.add_argument("--train_batch_size", default=100, type=int)
 parser.add_argument("--test_batch_size", default=100, type=int)
 parser.add_argument("--transform_batch_size", default=100, type=int)
-parser.add_argument("--num_epochs", default=30, type=int)
+parser.add_argument("-e", "--num_epochs", default=30, type=int)
 parser.add_argument("--lr", default=0.001, type=float)
 
 args = parser.parse_args()
@@ -58,6 +59,7 @@ y_dim = train_set.num_classes()
 num_bits = args.nbits
 num_features = train_set[0][1].size(0)
 num_nodes = len(train_set)
+edge_weight = args.edge_weight
 
 print("Train node2hash model ...")
 print("dataset: {}".format(args.dataset))
@@ -128,7 +130,7 @@ with open('logs/EdgeReg/loss.log.txt', 'w') as log_handle:
             reconstr_loss = EdgeReg.compute_reconstr_loss(logprob_w, xb)
             nn_reconstr_loss = EdgeReg.compute_edge_reconstr_loss(logprob_nn, nb)
 
-            loss = reconstr_loss + nn_reconstr_loss + kl_weight * kl_loss
+            loss = reconstr_loss + edge_weight * nn_reconstr_loss + kl_weight * kl_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -152,5 +154,5 @@ with open('logs/EdgeReg/loss.log.txt', 'w') as log_handle:
                 best_precision_epoch = epoch + 1
         
 #########################################################################################################
-with open('logs/EdgeReg/result.txt', 'a') as handle:
+with open('logs/EdgeReg/result_nn.txt', 'a') as handle:
     handle.write('{},{},{},{},{},{}\n'.format(dataset_name, args.nbits, walk_type, max_nodes, best_precision_epoch, best_precision))
