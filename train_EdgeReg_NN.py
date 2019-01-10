@@ -211,12 +211,12 @@ for epoch in range(num_epochs):
         train_b, test_b, train_y, test_y = model.get_binary_code(train_loader, test_loader)
         retrieved_indices = retrieve_topk(test_b.to(device), train_b.to(device), topK=100)
         prec = compute_precision_at_k(retrieved_indices, test_y.to(device), train_y.to(device), topK=100)
-        print("precision at 100: {:.4f}".format(prec.item()))
+        #print("precision at 100: {:.4f}".format(prec.item()))
 
         if prec.item() > best_precision:
             best_precision = prec.item()
             best_precision_epoch = epoch + 1
 
-        print('{} epoch:{} loss:{:.4f} Best Precision:({}){:.3f}'.format(model.get_name(), epoch+1, np.mean(avg_loss), best_precision_epoch, best_precision))
+print('{} epoch:{} loss:{:.4f} Best Precision:({}){:.4f}'.format(model.get_name(), epoch+1, np.mean(avg_loss), best_precision_epoch, best_precision))
 
         
