@@ -152,7 +152,7 @@ with open('logs/EdgeReg/loss.log.txt', 'w') as log_handle:
             
             log_handle.write('{},{},{:.4f},{:.4f},{:.4f}'.format(epoch, step, loss.item(), 
                                                                  reconstr_loss.item(), nn_reconstr_loss.item(), kl_loss.item()))
-        print('{} epoch:{} loss:{:.4f} Best Precision:({}){:.4f}'.format(model.get_name(), epoch+1, np.mean(avg_loss), best_precision_epoch, best_precision))
+        #print('{} epoch:{} loss:{:.4f} Best Precision:({}){:.4f}'.format(model.get_name(), epoch+1, np.mean(avg_loss), best_precision_epoch, best_precision))
         
         with torch.no_grad():
             train_b, test_b, train_y, test_y = model.get_binary_code(train_loader, test_loader)
@@ -167,3 +167,5 @@ with open('logs/EdgeReg/loss.log.txt', 'w') as log_handle:
 #########################################################################################################
 with open('logs/EdgeReg/result_nn.txt', 'a') as handle:
     handle.write('{},{},{},{},{},{}\n'.format(dataset_name, args.nbits, walk_type, max_nodes, best_precision_epoch, best_precision))
+    
+print('dataset: {} bits:{} model:{} T={} Best Precision:({}){:.4f}'.format(args.dataset, args.nbits, model.get_name(), args.num_samples, best_precision_epoch, best_precision))
