@@ -8,6 +8,7 @@ import torch.optim as optim
 from datasets import *
 from utils import *
 from model.EdgeReg import *
+from model.EdgeReg_v2 import *
 import argparse
 
 ##################################################################################################
@@ -23,6 +24,7 @@ parser.add_argument("--train_batch_size", default=100, type=int)
 parser.add_argument("--test_batch_size", default=100, type=int)
 parser.add_argument("--transform_batch_size", default=100, type=int)
 parser.add_argument("-e", "--num_epochs", default=30, type=int)
+parser.add_argument("-T", "--num_samples", default=1, type=int, help="number of samples from Q(z|x).")
 parser.add_argument("--lr", default=0.001, type=float)
 
 args = parser.parse_args()
@@ -100,7 +102,11 @@ def get_neighbors(ids, df, max_nodes, batch_size, traversal_func):
 
 #########################################################################################################
 
-model = EdgeReg(dataset_name, num_features, num_nodes, num_bits, dropoutProb=0.1, device=device)
+if args.num_samples == 1:
+    model = EdgeReg(dataset_name, num_features, num_nodes, num_bits, dropoutProb=0.1, device=device)
+else:
+    print("number of samples (T) = {}".format(args.num_samples))
+    model = EdgeReg_v2(dataset_name, num_features, num_nodes, num_bits, dropoutProb=0.1, device=device, T=args.num_samples)
 model.to(device)
 
 num_epochs = args.num_epochs
@@ -127,9 +133,14 @@ with open('logs/EdgeReg/loss.log.txt', 'w') as log_handle:
 
             logprob_w, logprob_nn, mu, logvar = model(xb)
             kl_loss = EdgeReg.calculate_KL_loss(mu, logvar)
-            reconstr_loss = EdgeReg.compute_reconstr_loss(logprob_w, xb)
-            nn_reconstr_loss = EdgeReg.compute_edge_reconstr_loss(logprob_nn, nb)
-
+            
+            if args.num_samples == 1:
+                reconstr_loss = EdgeReg.compute_reconstr_loss(logprob_w, xb)
+                nn_reconstr_loss = EdgeReg.compute_edge_reconstr_loss(logprob_nn, nb)
+            else:
+                reconstr_loss = EdgeReg_v2.compute_reconstr_loss(logprob_w, xb)
+                nn_reconstr_loss = EdgeReg_v2.compute_edge_reconstr_loss(logprob_nn, nb)
+            
             loss = reconstr_loss + edge_weight * nn_reconstr_loss + kl_weight * kl_loss
 
             optimizer.zero_grad()
