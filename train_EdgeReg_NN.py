@@ -25,6 +25,7 @@ parser.add_argument("--train_batch_size", default=100, type=int)
 parser.add_argument("--test_batch_size", default=100, type=int)
 parser.add_argument("--transform_batch_size", default=100, type=int)
 parser.add_argument("-e", "--num_epochs", default=30, type=int)
+parser.add_argument("-T", "--num_samples", default=1, type=int, help="number of samples from Q(z|x).")
 parser.add_argument("--lr", default=0.001, type=float)
 parser.add_argument("--topn", default=20, type=int)
 
@@ -167,7 +168,12 @@ num_nodes = len(train_set)
 edge_weight = args.edge_weight
 
 #######################################################################################################
-model = EdgeReg(dataset_name, num_features, num_nodes, num_bits, dropoutProb=args.dropout, device=device)
+if args.num_samples == 1:
+    model = EdgeReg(dataset_name, num_features, num_nodes, num_bits, dropoutProb=args.dropout, device=device)
+else:
+    print("number of samples (T) = {}".format(args.num_samples))
+    model = EdgeReg_v2(dataset_name, num_features, num_nodes, num_bits, dropoutProb=args.dropout, device=device, T=args.num_samples)
+    
 model.to(device)
 
 #######################################################################################################
@@ -193,8 +199,13 @@ for epoch in range(num_epochs):
 
         logprob_w, logprob_nn, mu, logvar = model(xb)
         kl_loss = EdgeReg.calculate_KL_loss(mu, logvar)
-        reconstr_loss = EdgeReg.compute_reconstr_loss(logprob_w, xb)
-        nn_reconstr_loss = EdgeReg.compute_edge_reconstr_loss(logprob_nn, nb)
+        
+        if args.num_samples == 1:
+            reconstr_loss = EdgeReg.compute_reconstr_loss(logprob_w, xb)
+            nn_reconstr_loss = EdgeReg.compute_edge_reconstr_loss(logprob_nn, nb)
+        else:
+            reconstr_loss = EdgeReg_v2.compute_reconstr_loss(logprob_w, xb)
+            nn_reconstr_loss = EdgeReg_v2.compute_edge_reconstr_loss(logprob_nn, nb)
 
         loss = reconstr_loss + edge_weight * nn_reconstr_loss + kl_weight * kl_loss
         
@@ -216,7 +227,18 @@ for epoch in range(num_epochs):
         if prec.item() > best_precision:
             best_precision = prec.item()
             best_precision_epoch = epoch + 1
-
+            
+            # save the model
+            saved_model_file = '{}.{}.T{}.bit{}.pth'.format(model.get_name(), args.dataset, args.num_samples, args.nbits)
+            torch.save(model.state_dict(), 'saved_models/{}'.format(saved_model_file))
+                
+        print('{} epoch:{} loss:{:.4f} Best Precision:({}){:.4f}'.format(model.get_name(), epoch+1, np.mean(avg_loss), best_precision_epoch, best_precision))
+        
 print('{} epoch:{} loss:{:.4f} Best Precision:({}){:.4f}'.format(model.get_name(), epoch+1, np.mean(avg_loss), best_precision_epoch, best_precision))
 
-        
+#########################################################################################################
+with open('logs/T_experiment.{}.txt'.format(args.dataset), 'a') as handle:
+    #handle.write('dataset: {} bits:{} model:{} T={} Best Precision:({}){:.4f}\n'.format(args.dataset, args.nbits, model.get_name(), args.num_samples, best_precision_epoch, best_precision))
+    handle.write('{}\t{}\t{}\t{}\n'.format(args.dataset, args.nbits, args.num_samples, best_precision))
+    
+print('dataset: {} bits:{} model:{} T={} Best Precision:({}){:.4f}'.format(args.dataset, args.nbits, model.get_name(), args.num_samples, best_precision_epoch, best_precision))

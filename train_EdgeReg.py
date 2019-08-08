@@ -66,6 +66,7 @@ edge_weight = args.edge_weight
 print("Train node2hash model ...")
 print("dataset: {}".format(args.dataset))
 print("numbits: {}".format(args.nbits))
+print("T: {}".format(args.num_samples))
 print("gpu id:  {}".format(args.gpunum))
 print("dropout probability: {}".format(args.dropout))
 print("num epochs: {}".format(args.num_epochs))
@@ -103,10 +104,10 @@ def get_neighbors(ids, df, max_nodes, batch_size, traversal_func):
 #########################################################################################################
 
 if args.num_samples == 1:
-    model = EdgeReg(dataset_name, num_features, num_nodes, num_bits, dropoutProb=0.1, device=device)
+    model = EdgeReg(dataset_name, num_features, num_nodes, num_bits, dropoutProb=args.dropout, device=device)
 else:
     print("number of samples (T) = {}".format(args.num_samples))
-    model = EdgeReg_v2(dataset_name, num_features, num_nodes, num_bits, dropoutProb=0.1, device=device, T=args.num_samples)
+    model = EdgeReg_v2(dataset_name, num_features, num_nodes, num_bits, dropoutProb=args.dropout, device=device, T=args.num_samples)
 model.to(device)
 
 num_epochs = args.num_epochs
@@ -123,7 +124,8 @@ with open('logs/EdgeReg/loss.log.txt', 'w') as log_handle:
     
     for epoch in range(num_epochs):
         avg_loss = []
-        for step, (ids, xb, yb, nb) in tqdm(enumerate(train_loader), ncols=50, total=len(train_loader)):
+        for step, (ids, xb, yb, nb) in enumerate(train_loader):
+        #for step, (ids, xb, yb, nb) in tqdm(enumerate(train_loader), ncols=50, total=len(train_loader)):
             xb = xb.to(device)
             yb = yb.to(device)
             
@@ -158,14 +160,21 @@ with open('logs/EdgeReg/loss.log.txt', 'w') as log_handle:
             train_b, test_b, train_y, test_y = model.get_binary_code(train_loader, test_loader)
             retrieved_indices = retrieve_topk(test_b.to(device), train_b.to(device), topK=100)
             prec = compute_precision_at_k(retrieved_indices, test_y.to(device), train_y.to(device), topK=100)
-            print("precision at 100: {:.4f}".format(prec.item()))
+            #print("precision at 100: {:.4f}".format(prec.item()))
 
             if prec.item() > best_precision:
                 best_precision = prec.item()
                 best_precision_epoch = epoch + 1
-        
+                
+                saved_model_file = '{}.{}.T{}.bit{}.pth'.format(model.get_name(), args.dataset, args.num_samples, args.nbits)
+                torch.save(model.state_dict(), 'saved_models/{}'.format(saved_model_file))
+                
 #########################################################################################################
 with open('logs/EdgeReg/result_nn.txt', 'a') as handle:
     handle.write('{},{},{},{},{},{}\n'.format(dataset_name, args.nbits, walk_type, max_nodes, best_precision_epoch, best_precision))
+    
+with open('logs/T_experiment.{}.txt'.format(args.dataset), 'a') as handle:
+    #handle.write('dataset: {} bits:{} model:{} T={} Best Precision:({}){:.4f}\n'.format(args.dataset, args.nbits, model.get_name(), args.num_samples, best_precision_epoch, best_precision))
+    handle.write('{}\t{}\t{}\t{}\n'.format(args.dataset, args.nbits, args.num_samples, best_precision))
     
 print('dataset: {} bits:{} model:{} T={} Best Precision:({}){:.4f}'.format(args.dataset, args.nbits, model.get_name(), args.num_samples, best_precision_epoch, best_precision))
