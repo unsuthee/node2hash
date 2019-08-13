@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 from utils import *
 from tqdm import tqdm
 from model.EdgeReg import *
+from model.EdgeReg_v2 import *
 import argparse
 
 ##################################################################################################
