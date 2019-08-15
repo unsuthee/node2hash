@@ -32,6 +32,12 @@ class EdgeReg(nn.Module):
         self.nn_decoder = nn.Sequential(nn.Linear(self.latentDim, self.numNodes),
                                      nn.LogSoftmax(dim=1))
         
+    def use_content(self):
+        return True
+    
+    def use_neighbors(self):
+        return True
+    
     def encode(self, doc_mat):
         h = self.encoder(doc_mat)
         z_mu = self.h_to_mu(h)

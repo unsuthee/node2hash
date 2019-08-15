@@ -4,10 +4,11 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 
-class EdgeReg(nn.Module):
+class EdgeRegOnly(nn.Module):
     
-    def __init__(self, dataset, vocabSize, numNodes, latentDim, device, dropoutProb=0.):
-        super(EdgeReg, self).__init__()
+    def __init__(self, dataset, vocabSize, numNodes, 
+                       latentDim, device, dropoutProb=0., T=1):
+        super(EdgeRegOnly, self).__init__()
         
         self.dataset = dataset
         self.hidden_dim = 1000
@@ -16,6 +17,7 @@ class EdgeReg(nn.Module):
         self.latentDim = latentDim
         self.dropoutProb = dropoutProb
         self.device = device
+        self.T = T # number of samples from Q(z|x)
         
         self.encoder = nn.Sequential(nn.Linear(self.vocabSize, self.hidden_dim),
                                      nn.ReLU(inplace=True),
@@ -27,13 +29,11 @@ class EdgeReg(nn.Module):
         self.h_to_logvar = nn.Sequential(nn.Linear(self.hidden_dim, self.latentDim),
                                          nn.Sigmoid())
         
-        self.decoder = nn.Sequential(nn.Linear(self.latentDim, self.vocabSize),
-                                     nn.LogSoftmax(dim=1))
         self.nn_decoder = nn.Sequential(nn.Linear(self.latentDim, self.numNodes),
                                      nn.LogSoftmax(dim=1))
         
     def use_content(self):
-        return True
+        return False
     
     def use_neighbors(self):
         return True
@@ -45,20 +45,22 @@ class EdgeReg(nn.Module):
         return z_mu, z_logvar
         
     def reparametrize(self, mu, logvar):
-        std = torch.sqrt(torch.exp(logvar))
-        eps = torch.cuda.FloatTensor(std.size()).normal_()
-        eps = Variable(eps)
-        return eps.mul(std).add_(mu)
+        eps = mu.new_empty((mu.size(0), self.T, mu.size(1))).normal_()
+        std = torch.sqrt(torch.exp(logvar)).unsqueeze(1)
+        z = eps.mul(std).add_(mu.unsqueeze(1))
+        return z
     
     def forward(self, document_mat):
         mu, logvar = self.encode(document_mat)
-        z = self.reparametrize(mu, logvar)
-        prob_w = self.decoder(z)
-        prob_nn = self.nn_decoder(z)
-        return prob_w, prob_nn, mu, logvar
+        # z is (# batch, T, #latent_dim)
+        z = self.reparametrize(mu, logvar) 
+        
+        log_prob_nn = self.nn_decoder(z.view(-1, self.latentDim))
+        log_prob_nn = log_prob_nn.view(mu.size(0), self.T, -1)
+        return log_prob_nn, mu, logvar
     
     def get_name(self):
-        return "node2hash"
+        return "node2hash_edge_only"
     
     @staticmethod
     def calculate_KL_loss(mu, logvar):
@@ -68,12 +70,11 @@ class EdgeReg(nn.Module):
         return KLD
 
     @staticmethod
-    def compute_reconstr_loss(logprob_word, doc_mat):
-        return -torch.mean(torch.sum(logprob_word * doc_mat, dim=1))
-    
-    @staticmethod
     def compute_edge_reconstr_loss(logprob_word, edge_mat):
-        return -torch.mean(torch.sum(logprob_word * edge_mat, dim=1))
+        ''' 
+        Return a float value 
+        '''
+        return -torch.mean(torch.sum(logprob_word * edge_mat.unsqueeze(1), dim=2))
     
     def get_binary_code(self, train, test):
         train_zy = [(self.encode(xb.to(self.device))[0], yb) for _, xb, yb, _ in train]
