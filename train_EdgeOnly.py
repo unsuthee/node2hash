@@ -104,7 +104,7 @@ def get_neighbors(ids, df, max_nodes, batch_size, traversal_func):
 
 
 print("number of samples (T) = {}".format(args.num_samples))
-model = EdgeOnly(dataset_name, num_features, num_nodes, num_bits, dropoutProb=args.dropout, device=device, T=args.num_samples)
+model = EdgeRegOnly(dataset_name, num_features, num_nodes, num_bits, dropoutProb=args.dropout, device=device, T=args.num_samples)
 model.to(device)
 
 num_epochs = args.num_epochs
@@ -116,7 +116,7 @@ kl_step = 1 / 5000.
 best_precision = 0
 best_precision_epoch = 0
 
-for epoch in range(num_epochs):
+for epoch in tqdm(range(num_epochs), ncols=80):
     avg_loss = []
     for step, (ids, xb, yb, nb) in enumerate(train_loader):
         xb = xb.to(device)
@@ -127,8 +127,8 @@ for epoch in range(num_epochs):
         nb = nb.to(device)
 
         logprob_nn, mu, logvar = model(xb)
-        kl_loss = EdgeReg.calculate_KL_loss(mu, logvar)
-        nn_reconstr_loss = EdgeReg_v2.compute_edge_reconstr_loss(logprob_nn, nb)
+        kl_loss = EdgeRegOnly.calculate_KL_loss(mu, logvar)
+        nn_reconstr_loss = EdgeRegOnly.compute_edge_reconstr_loss(logprob_nn, nb)
             
         loss = edge_weight * nn_reconstr_loss + kl_weight * kl_loss
 

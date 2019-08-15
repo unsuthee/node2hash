@@ -122,7 +122,7 @@ for epoch in range(num_epochs):
         yb = yb.to(device)
             
         logprob_w, mu, logvar = model(xb)
-        kl_loss = EdgeReg.calculate_KL_loss(mu, logvar)
+        kl_loss = VDSH.calculate_KL_loss(mu, logvar)
         reconstr_loss = VDSH.compute_reconstr_loss(logprob_w, xb)
             
         loss = reconstr_loss + kl_weight * kl_loss
