@@ -19,7 +19,7 @@ parser.add_argument("-d", "--dataset", help="Name of the dataset.")
 parser.add_argument("-b", "--nbits", help="Number of bits of the embedded vector.", type=int)
 parser.add_argument("-T", "--num_samples", default=1, type=int, help="number of samples from Q(z|x).")
 parser.add_argument("--hash", action='store_true', help="enable this flag forces the model to hash the embedding before evaluation.")
-
+    
 args = parser.parse_args()
 
 if not args.gpunum:
@@ -43,22 +43,69 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 #########################################################################################################
 
+class TextAndNearestNeighborsDataset(Dataset):
+
+    def __init__(self, dataset_name, data_dir, subset='train'):
+        """
+        Args:
+            data_dir (string): Directory for loading and saving train, test, and cv dataframes.
+            subset (string): Specify subset of the datasets. The choices are: train, test, cv.
+        """
+        self.dataset_name = dataset_name
+        self.data_dir = os.path.join(data_dir, dataset_name)
+        self.subset = subset
+        fn = '{}.{}.pkl'.format(dataset_name, subset)
+        self.df = self.load_df(self.data_dir, fn)
+        self.docid2index = {docid: index for index, docid in enumerate(list(self.df.index))}
+        
+        if dataset_name in ['reuters', 'rcv1', 'tmc']:
+            self.single_label = False
+        else:
+            self.single_label = True
+
+    def load_df(self, data_dir, df_file):
+        df_file = os.path.join(data_dir, df_file)
+        return pd.read_pickle(df_file)
+        
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        doc_id = self.df.iloc[idx].name
+        doc_bow = self.df.iloc[idx].bow
+        doc_bow = torch.from_numpy(doc_bow.toarray().squeeze().astype(np.float32))
+        
+        label = self.df.iloc[idx].label
+        label = torch.from_numpy(label.toarray().squeeze().astype(np.float32))
+                
+        neighbors = torch.LongTensor(self.df.iloc[idx].neighbors)
+        return (doc_id, doc_bow, label, neighbors)
+    
+    def num_classes(self):
+        return self.df.iloc[0].label.shape[1]
+    
+    def num_features(self):
+        return self.df.iloc[0].bow.shape[1]
+
+#########################################################################################################
 dataset_name = args.dataset
 data_dir = os.path.join('dataset/clean', dataset_name)
 
-train_batch_size = 100
-test_batch_size = 100
+train_batch_size=100
+test_batch_size=100
 
-train_set = TextDataset(dataset_name, data_dir, subset='train')
-test_set = TextDataset(dataset_name, data_dir, subset='test')
-train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=train_batch_size, shuffle=True)
-test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=test_batch_size, shuffle=True)
+train_set = TextAndNearestNeighborsDataset(dataset_name, 'dataset/clean', 'train')
+train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=100, shuffle=False)
+test_set = TextAndNearestNeighborsDataset(dataset_name, 'dataset/clean', 'test')
+test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=100, shuffle=False)
 
 #########################################################################################################
 y_dim = train_set.num_classes()
 num_bits = args.nbits
-num_features = train_set[0][1].size(0)
+num_features = train_set.num_features()
 num_nodes = len(train_set)
+edge_weight = 1.0
+dropout_prob = 0.1
 num_samples = args.num_samples
 
 print("Train node2hash model ...")
@@ -91,8 +138,8 @@ model.eval()
 
 import torch.nn.functional as F
 
+# get non-binary code
 if not args.hash:
-    # get non-binary code
     with torch.no_grad():
         train_zy = [(model.encode(xb.to(model.device))[0], yb) for _, xb, yb, _ in train_loader]
         train_z, train_y = zip(*train_zy)
@@ -123,7 +170,7 @@ if not args.hash:
 
         with open('nonbinary_logs/Nonbinary.Experiment.{}.txt'.format(args.dataset), 'a') as handle:
             handle.write('{}\t{}\t{}\t{}\n'.format(args.dataset, args.nbits, args.num_samples, avg_prec_at_100))
-            
+
 else:
     with torch.no_grad():
         train_b, test_b, train_y, test_y = model.get_binary_code(train_loader, test_loader)
@@ -133,3 +180,4 @@ else:
         
         with open('binary_logs/binary.Experiment.{}.txt'.format(args.dataset), 'a') as handle:
             handle.write('{}\t{}\t{}\t{}\n'.format(args.dataset, args.nbits, args.num_samples, avg_prec_at_100))
+    
