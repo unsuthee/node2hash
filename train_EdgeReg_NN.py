@@ -183,7 +183,7 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr)
 kl_weight = 0.
 kl_step = 1 / 5000.
 
-edge_weight = 0.
+edge_weight = args.edge_weight
 edge_step = 1 / 1000.
 
 best_precision = 0
