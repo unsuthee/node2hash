@@ -19,6 +19,7 @@ parser.add_argument("-d", "--dataset", help="Name of the dataset.")
 parser.add_argument("-b", "--nbits", help="Number of bits of the embedded vector.", type=int)
 parser.add_argument("-T", "--num_samples", default=1, type=int, help="number of samples from Q(z|x).")
 parser.add_argument("--hash", action='store_true', help="enable this flag forces the model to hash the embedding before evaluation.")
+parser.add_argument("--batch_size", default=100, type=int, help="the test batch size during evaluation.")
 
 args = parser.parse_args()
 
@@ -47,7 +48,7 @@ dataset_name = args.dataset
 data_dir = os.path.join('dataset/clean', dataset_name)
 
 train_batch_size = 100
-test_batch_size = 100
+test_batch_size = args.batch_size
 
 train_set = TextDataset(dataset_name, data_dir, subset='train')
 test_set = TextDataset(dataset_name, data_dir, subset='test')
