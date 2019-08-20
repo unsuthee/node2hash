@@ -163,7 +163,7 @@ if not args.hash:
         avg_prec_at_100 = np.mean(prec_at_100)
         print('Nonhash: average prec at 100 = {:.4f}'.format(avg_prec_at_100))
 
-        with open('nonbinary_logs/Nonbinary.Experiment.{}.txt'.format(args.dataset), 'a') as handle:
+        with open('edgeonly_logs/Nonbinary.Experiment.{}.txt'.format(args.dataset), 'a') as handle:
             handle.write('{}\t{}\t{}\t{}\n'.format(args.dataset, args.nbits, args.num_samples, avg_prec_at_100))
 
 else:
@@ -173,6 +173,6 @@ else:
         avg_prec_at_100 = compute_precision_at_k(retrieved_indices, test_y.to(device), train_y.to(device), topK=100)
         print('Hash: average prec at 100 = {:.4f}'.format(avg_prec_at_100))
         
-        with open('binary_logs/binary.Experiment.{}.txt'.format(args.dataset), 'a') as handle:
+        with open('edgeonly_logs/binary.Experiment.{}.txt'.format(args.dataset), 'a') as handle:
             handle.write('{}\t{}\t{}\t{}\n'.format(args.dataset, args.nbits, args.num_samples, avg_prec_at_100))
     

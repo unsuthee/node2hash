@@ -57,8 +57,6 @@ class VDSH(nn.Module):
         
         log_prob_w = self.decoder(z.view(-1, self.latentDim))
         log_prob_w = log_prob_w.view(mu.size(0), self.T, -1)
-        log_prob_nn = self.nn_decoder(z.view(-1, self.latentDim))
-        log_prob_nn = log_prob_nn.view(mu.size(0), self.T, -1)
         return log_prob_w, mu, logvar
     
     def get_name(self):

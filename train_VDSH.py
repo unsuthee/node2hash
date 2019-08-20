@@ -150,8 +150,8 @@ for epoch in range(num_epochs):
                 torch.save(model.state_dict(), 'saved_models/{}'.format(saved_model_file))
                 
 #########################################################################################################
-with open('logs/VDSH/result_nn.txt', 'a') as handle:
-    handle.write('{},{},{},{},{},{}\n'.format(dataset_name, args.nbits, walk_type, max_nodes, best_precision_epoch, best_precision))
+# with open('logs/VDSH/result_nn.txt', 'a') as handle:
+#     handle.write('{},{},{},{},{},{}\n'.format(dataset_name, args.nbits, walk_type, max_nodes, best_precision_epoch, best_precision))
     
 # with open('logs/T_experiment.{}.txt'.format(args.dataset), 'a') as handle:
 #     #handle.write('dataset: {} bits:{} model:{} T={} Best Precision:({}){:.4f}\n'.format(args.dataset, args.nbits, model.get_name(), args.num_samples, best_precision_epoch, best_precision))
