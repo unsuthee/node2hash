@@ -117,7 +117,7 @@ best_precision_epoch = 0
     
 for epoch in range(num_epochs):
     avg_loss = []
-    for step, (ids, xb, yb, _) in enumerate(train_loader):
+    for ids, xb, yb, _ in tqdm(train_loader, ncols=50):
         xb = xb.to(device)
         yb = yb.to(device)
             
@@ -148,7 +148,18 @@ for epoch in range(num_epochs):
                 
                 saved_model_file = '{}.{}.T{}.bit{}.pth'.format(model.get_name(), args.dataset, args.num_samples, args.nbits)
                 torch.save(model.state_dict(), 'saved_models/{}'.format(saved_model_file))
-                
+        
+    print('{} epoch:{} loss:{:.4f} Best Precision:({}){:.4f}'.format(model.get_name(), epoch+1, np.mean(avg_loss), best_precision_epoch, best_precision))
+        
+print('{} epoch:{} loss:{:.4f} Best Precision:({}){:.4f}'.format(model.get_name(), epoch+1, np.mean(avg_loss), best_precision_epoch, best_precision))
+
+#########################################################################################################
+# with open('vdsh_logs/T_experiment.{}.txt'.format(args.dataset), 'a') as handle:
+#     #handle.write('dataset: {} bits:{} model:{} T={} Best Precision:({}){:.4f}\n'.format(args.dataset, args.nbits, model.get_name(), args.num_samples, best_precision_epoch, best_precision))
+#     handle.write('{}\t{}\t{}\t{}\n'.format(args.dataset, args.nbits, args.num_samples, best_precision))
+    
+# print('dataset: {} bits:{} model:{} T={} Best Precision:({}){:.4f}'.format(args.dataset, args.nbits, model.get_name(), args.num_samples, best_precision_epoch, best_precision))
+
 #########################################################################################################
 # with open('logs/VDSH/result_nn.txt', 'a') as handle:
 #     handle.write('{},{},{},{},{},{}\n'.format(dataset_name, args.nbits, walk_type, max_nodes, best_precision_epoch, best_precision))
@@ -157,4 +168,4 @@ for epoch in range(num_epochs):
 #     #handle.write('dataset: {} bits:{} model:{} T={} Best Precision:({}){:.4f}\n'.format(args.dataset, args.nbits, model.get_name(), args.num_samples, best_precision_epoch, best_precision))
 #     handle.write('{}\t{}\t{}\t{}\n'.format(args.dataset, args.nbits, args.num_samples, best_precision))
     
-print('dataset: {} bits:{} model:{} T={} Best Precision:({}){:.4f}'.format(args.dataset, args.nbits, model.get_name(), args.num_samples, best_precision_epoch, best_precision))
+# print('dataset: {} bits:{} model:{} T={} Best Precision:({}){:.4f}'.format(args.dataset, args.nbits, model.get_name(), args.num_samples, best_precision_epoch, best_precision))
